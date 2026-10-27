@@ -1,0 +1,40 @@
+name: Build Spring Boot API
+
+on:
+  push:
+    branches:
+      - main
+      - codex/**
+    paths:
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'src/**'
+      - 'Dockerfile'
+      - '.github/workflows/build-backend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build executable JAR
+        run: gradle bootJar --no-daemon
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: room-rental-backend
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 7
