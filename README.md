@@ -1,48 +1,64 @@
-# Room Rental Backend
+# Room Rental MVP Backend
 
-Spring Boot 3 / Java 17 API with PostgreSQL for a monthly-room-rental MVP.
+Spring Boot 3 / Java 17 / Gradle backend for the Room Rental MVP. The service exposes JSON REST APIs under `/api/v1`, uses PostgreSQL with Flyway migrations, and returns DTOs rather than persistence entities.
 
-## Features
+## Stack
 
-- USER registration and HTTP Basic sign-in (no OTP); passwords use BCrypt.
-- Public browsing of available rooms.
-- USER room listings, favorites, and rental requests.
-- Listing ownership checks and ADMIN-wide management.
-- Admin user/room overview and summary endpoint.
-- PostgreSQL via Docker Compose; admin and sample listings are seeded from environment configuration.
+- Spring Boot 3.3, Spring Web, Validation, Security, Data JPA, Actuator
+- PostgreSQL 16 and Flyway
+- JWT access tokens with short expiry
+- Opaque, SHA-256-hashed, rotating refresh tokens
+- BCrypt password hashing
+- Gradle and Java 17
 
-## Start locally
+## Local Development
 
-1. Copy `.env.example` to `.env`.
-2. Set a unique local `DB_PASSWORD`, `ADMIN_EMAIL`, and strong `ADMIN_PASSWORD` in `.env`.
-3. Run:
+1. Install Java 17+ and Gradle 8+.
+2. Start PostgreSQL, or use the provided Docker Compose stack.
+3. Set `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and a generated `JWT_SECRET_BASE64`.
+4. Run `gradle clean bootJar --no-daemon`.
+5. Run the application with `gradle bootRun`.
+
+The default local profile is `dev`. The application requires a JWT secret at startup; no development secret is committed.
+
+## Docker Compose
 
 ```bash
+cp .env.example .env
+# Replace every replace-with value in .env.
 docker compose up --build
 ```
 
-API: `http://localhost:8080`
+The database is attached only to the internal `private-db` network and uses the named `room-rental-postgres` volume. Nginx exposes the API at `http://localhost:8080`.
 
-For local Android emulator builds, use API base `http://10.0.2.2:8080`. For a physical phone, use the computer's reachable LAN address. HTTP is for local demonstration only; use HTTPS outside local development.
+## API Summary
 
-## Main endpoints
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET/PATCH /api/v1/me`
+- `GET /api/v1/rooms` and `GET /api/v1/rooms/{roomId}`
+- `POST/PATCH/DELETE /api/v1/rooms[/{roomId}]` for authenticated users and owners
+- `GET /api/v1/me/rooms`
+- `GET/POST/DELETE /api/v1/me/favorites[/{roomId}]`
+- `POST /api/v1/rooms/{roomId}/rental-requests`
+- `GET /api/v1/me/rental-requests`
+- `GET /api/v1/me/room-requests`
+- `POST /api/v1/rental-requests/{requestId}/approve|reject`
+- `DELETE /api/v1/rental-requests/{requestId}`
+- `GET /api/v1/admin/dashboard`, `/users`, `/rooms`, `/rental-requests`, `/audit-logs`, `/security-events`
+- `PATCH/POST /api/v1/admin/users/{userId}/status|activate|deactivate`
+- `PATCH /api/v1/admin/rooms/{roomId}` and `POST/DELETE /api/v1/admin/rooms/{roomId}/deactivate|delete`
+- `POST /api/v1/admin/rental-requests/{requestId}/approve|reject|cancel`
 
-| Method | Path | Access |
-|---|---|---|
-| POST | `/api/auth/register` | Public; creates USER |
-| GET | `/api/auth/me` | Signed in |
-| GET | `/api/rooms`, `/api/rooms/{id}` | Public, available rooms |
-| GET | `/api/rooms/mine` | Signed in |
-| POST/PUT/DELETE | `/api/rooms` | Signed in; USER owns listing, ADMIN may manage all |
-| GET/POST/DELETE | `/api/favorites` | Signed in |
-| POST | `/api/requests` | Signed in |
-| GET | `/api/requests/outbox`, `/api/requests/inbox` | Signed in |
-| PATCH | `/api/requests/{id}/status` | Request owner, requester cancellation, or ADMIN |
-| GET | `/api/admin/users`, `/api/admin/rooms`, `/api/admin/summary` | ADMIN |
+Use `Authorization: Bearer <accessToken>` for protected endpoints. Pagination uses Spring Data parameters such as `?page=0&size=20&sort=createdAt,desc`.
 
-## Security and delivery notes
+## Verification
 
-- Supply secrets only through environment variables; do not commit `.env`.
-- HTTP Basic must be protected by HTTPS outside local demonstration.
-- This is an MVP: monthly listings, favorites, and requests are implemented. Contract files, deposit collection, invoices, and payment processing are not yet implemented.
-- SDLC and phase-by-phase security activities: [docs/SDLC_SECURITY.md](docs/SDLC_SECURITY.md).
+```bash
+gradle clean bootJar --no-daemon
+gradle test --no-daemon
+```
+
+See `docs/` for requirements, architecture, data model, endpoint contracts, security requirements, SDLC controls, and deployment operations.

@@ -1,6 +1,7 @@
 .gradle/
 build/
-.env
-*.log
+out/
 .idea/
 *.iml
+.env
+.DS_Store
